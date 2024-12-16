@@ -1,116 +1,82 @@
-import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class CrackingServer extends UnicastRemoteObject implements CrackingServerInterface {
 
-    private static final long serialVersionUID = 1L;
-    private AtomicBoolean isFound = new AtomicBoolean(false);
-    private String foundPassword = null;
-    private long totalCombinations = 0;
-    private long combinationsChecked = 0;
+    private volatile boolean found = false;
+    private ExecutorService executor;
 
     public CrackingServer() throws RemoteException {
         super();
     }
 
     @Override
-    public void startSearch(String targetHash, int passwordLength, int numThreads) throws RemoteException {
-        System.out.println("Starting password cracking...");
-        this.totalCombinations = (long) Math.pow(95, passwordLength);
-        Thread[] threads = new Thread[numThreads];
+    public void startCracking(String targetHash, int passwordLength, char startChar, char endChar, int threadCount) throws RemoteException {
+        System.out.println("Server started cracking with " + threadCount + " threads...");
+        executor = Executors.newFixedThreadPool(threadCount);
 
-        for (int i = 0; i < numThreads; i++) {
-            final int threadId = i;
-            threads[i] = new Thread(() -> {
-                try {
-                    searchPassword(targetHash, passwordLength, threadId, numThreads);
-                } catch (Exception e) {
-                    System.err.println("Error in thread " + threadId + ": " + e.getMessage());
+        int range = (endChar - startChar + 1) / threadCount;
+        for (int i = 0; i < threadCount; i++) {
+            char rangeStart = (char) (startChar + i * range);
+            char rangeEnd = (i == threadCount - 1) ? endChar : (char) (rangeStart + range - 1);
+
+            executor.submit(new BruteForceTask(targetHash, passwordLength, rangeStart, rangeEnd));
+        }
+    }
+
+    @Override
+    public void stopCracking() throws RemoteException {
+        found = true;
+        executor.shutdownNow();
+        System.out.println("Search stopped.");
+    }
+
+    private class BruteForceTask implements Runnable {
+        private String targetHash;
+        private int passwordLength;
+        private char startChar, endChar;
+
+        public BruteForceTask(String targetHash, int passwordLength, char startChar, char endChar) {
+            this.targetHash = targetHash;
+            this.passwordLength = passwordLength;
+            this.startChar = startChar;
+            this.endChar = endChar;
+        }
+
+        @Override
+        public void run() {
+            bruteForce("", passwordLength);
+        }
+
+        private void bruteForce(String current, int length) {
+            if (found || current.length() == length) {
+                if (current.length() == length && getMd5(current).equals(targetHash)) {
+                    System.out.println("Password found: " + current + " by Thread " + Thread.currentThread().getName());
+                    found = true;
                 }
-            });
-            threads[i].start();
+                return;
+            }
+
+            for (char c = startChar; c <= endChar && !found; c++) {
+                bruteForce(current + c, length);
+            }
         }
 
-        for (Thread thread : threads) {
+        private String getMd5(String input) {
             try {
-                thread.join();
-            } catch (InterruptedException e) {
-                System.err.println("Thread interrupted: " + e.getMessage());
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] messageDigest = md.digest(input.getBytes());
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : messageDigest) {
+                    hexString.append(String.format("%02x", b));
+                }
+                return hexString.toString();
+            } catch (Exception e) {
+                return "";
             }
-        }
-    }
-
-    @Override
-    public String getResult() throws RemoteException {
-        return foundPassword != null ? "Password: " + foundPassword : "Password not found";
-    }
-
-    @Override
-    public boolean isPasswordFound() throws RemoteException {
-        return isFound.get();
-    }
-
-    @Override
-    public String getProgress() throws RemoteException {
-        double progress = (combinationsChecked / (double) totalCombinations) * 100;
-        return String.format("Progress: %.2f%%", progress);
-    }
-
-    private void searchPassword(String targetHash, int passwordLength, int threadId, int numThreads) {
-        int startChar = 32 + (95 / numThreads) * threadId;
-        int endChar = startChar + (95 / numThreads);
-        if (threadId == numThreads - 1) endChar = 127;
-
-        try {
-            bruteForce("", passwordLength, targetHash, startChar, endChar);
-        } catch (Exception e) {
-            System.err.println("Error during brute force: " + e.getMessage());
-        }
-    }
-
-    private void bruteForce(String current, int length, String targetHash, int startChar, int endChar) {
-        if (isFound.get()) return;
-
-        if (current.length() == length) {
-            synchronized (this) {
-                combinationsChecked++;
-            }
-            if (getMd5(current).equals(targetHash)) {
-                setFoundPassword(current);
-            }
-            return;
-        }
-
-        for (int i = startChar; i < endChar; i++) {
-            if (isFound.get()) return;
-            bruteForce(current + (char) i, length, targetHash, 32, 127);
-        }
-    }
-
-    private synchronized void setFoundPassword(String password) {
-        if (!isFound.get()) {
-            foundPassword = password;
-            isFound.set(true);
-            System.out.println("Password found: " + password);
-        }
-    }
-
-    private String getMd5(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] messageDigest = md.digest(input.getBytes());
-            BigInteger no = new BigInteger(1, messageDigest);
-            String hashtext = no.toString(16);
-            while (hashtext.length() < 32) {
-                hashtext = "0" + hashtext;
-            }
-            return hashtext;
-        } catch (Exception e) {
-            throw new RuntimeException("Error computing MD5 hash: " + e.getMessage());
         }
     }
 }
-
