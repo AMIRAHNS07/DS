@@ -9,7 +9,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
     private static final long serialVersionUID = 1L;
     private AtomicBoolean isFound = new AtomicBoolean(false);
     private String foundPassword = null;
-    private long totalCombinations;
+    private long totalCombinations = 0;
     private long combinationsChecked = 0;
 
     public CrackingServer() throws RemoteException {
@@ -18,7 +18,8 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
     @Override
     public void startSearch(String targetHash, int passwordLength, int numThreads) throws RemoteException {
-        this.totalCombinations = (long) Math.pow(95, passwordLength) / numThreads;
+        System.out.println("Starting password cracking...");
+        this.totalCombinations = (long) Math.pow(95, passwordLength);
         Thread[] threads = new Thread[numThreads];
 
         for (int i = 0; i < numThreads; i++) {
@@ -27,7 +28,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
                 try {
                     searchPassword(targetHash, passwordLength, threadId, numThreads);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.err.println("Error in thread " + threadId + ": " + e.getMessage());
                 }
             });
             threads[i].start();
@@ -37,7 +38,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
             try {
                 thread.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.err.println("Thread interrupted: " + e.getMessage());
             }
         }
     }
@@ -66,7 +67,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         try {
             bruteForce("", passwordLength, targetHash, startChar, endChar);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error during brute force: " + e.getMessage());
         }
     }
 
@@ -74,7 +75,9 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         if (isFound.get()) return;
 
         if (current.length() == length) {
-            combinationsChecked++;
+            synchronized (this) {
+                combinationsChecked++;
+            }
             if (getMd5(current).equals(targetHash)) {
                 setFoundPassword(current);
             }
@@ -83,7 +86,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
         for (int i = startChar; i < endChar; i++) {
             if (isFound.get()) return;
-            bruteForce(current + (char) i, length, targetHash, 32, 126);
+            bruteForce(current + (char) i, length, targetHash, 32, 127);
         }
     }
 
@@ -91,6 +94,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         if (!isFound.get()) {
             foundPassword = password;
             isFound.set(true);
+            System.out.println("Password found: " + password);
         }
     }
 
@@ -105,7 +109,8 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
             }
             return hashtext;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error computing MD5 hash: " + e.getMessage());
         }
     }
 }
+
