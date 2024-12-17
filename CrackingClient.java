@@ -1,64 +1,77 @@
-import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.Scanner;
 
 public class CrackingClient {
-
     public static void main(String[] args) {
         try {
             Scanner scanner = new Scanner(System.in);
 
-            // Get user inputs
-            System.out.print("Enter MD5 hash to crack: ");
+            System.out.print("Enter MD5 hash value: ");
             String targetHash = scanner.nextLine();
 
             System.out.print("Enter password length: ");
             int passwordLength = scanner.nextInt();
 
-            System.out.print("Enter number of servers (1 or 2): ");
+            System.out.print("Enter number of servers (1-2): ");
             int serverCount = scanner.nextInt();
+            if (serverCount < 1 || serverCount > 2) {
+                throw new IllegalArgumentException("Invalid number of servers (1-2 allowed).");
+            }
 
-            System.out.print("Enter number of threads per server: ");
+            System.out.print("Enter number of threads per server (1-10): ");
             int threadCount = scanner.nextInt();
-
-            // Input validation
-            if (serverCount < 1 || serverCount > 2 || threadCount < 1 || threadCount > 10) {
-                System.out.println("Error: Server count must be 1-2, and thread count must be 1-10.");
-                return;
+            if (threadCount < 1 || threadCount > 10) {
+                throw new IllegalArgumentException("Invalid number of threads (1-10 allowed).");
             }
 
-            // Connect to servers
-            CrackingServerInterface[] servers = new CrackingServerInterface[serverCount];
-            for (int i = 0; i < serverCount; i++) {
-                servers[i] = (CrackingServerInterface) Naming.lookup("//localhost/Server" + (i + 1));
-                System.out.println("Connected to Server " + (i + 1));
+            Registry registry1 = LocateRegistry.getRegistry("192.168.122.101", 1099);
+            CrackingServerInterface server1 = (CrackingServerInterface) registry1.lookup("CrackingServer");
+
+            Registry registry2 = null;
+            CrackingServerInterface server2 = null;
+
+            if (serverCount == 2) {
+                registry2 = LocateRegistry.getRegistry("192.168.122.102", 1100);
+                server2 = (CrackingServerInterface) registry2.lookup("CrackingServer");
             }
 
-            // Distribute search space
-            char startChar = '!';
-            char endChar = '~';
-            int range = (endChar - startChar + 1) / serverCount;
+            System.out.println("Starting distributed password search...");
 
-            long startTime = System.currentTimeMillis();
+            Thread server1Task = new Thread(() -> {
+                try {
+                    server1.startSearch(targetHash, passwordLength, '!', 'M', threadCount);
+                } catch (Exception e) {
+                    System.err.println("Server 1 error: " + e.getMessage());
+                }
+            });
 
-            for (int i = 0; i < serverCount; i++) {
-                char rangeStart = (char) (startChar + i * range);
-                char rangeEnd = (i == serverCount - 1) ? endChar : (char) (rangeStart + range - 1);
-
-                servers[i].startCracking(targetHash, passwordLength, rangeStart, rangeEnd, threadCount);
+            Thread server2Task = null;
+            if (server2 != null) {
+                server2Task = new Thread(() -> {
+                    try {
+                        server2.startSearch(targetHash, passwordLength, 'N', 'z', threadCount);
+                    } catch (Exception e) {
+                        System.err.println("Server 2 error: " + e.getMessage());
+                    }
+                });
             }
 
-            System.out.println("Password cracking started...");
+            server1Task.start();
+            if (server2Task != null) server2Task.start();
 
-            // Stop servers after result
-            for (CrackingServerInterface server : servers) {
-                server.stopCracking();
+            server1Task.join();
+            if (server2Task != null) server2Task.join();
+
+            if (server1.isPasswordFound()) {
+                System.out.println("Password found by Server 1: " + server1.getFoundPassword());
             }
-
-            long endTime = System.currentTimeMillis();
-            System.out.printf("Time spent: %.2f seconds%n", (endTime - startTime) / 1000.0);
+            if (server2 != null && server2.isPasswordFound()) {
+                System.out.println("Password found by Server 2: " + server2.getFoundPassword());
+            }
 
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+            System.err.println("Client error: " + e.getMessage());
             e.printStackTrace();
         }
     }
