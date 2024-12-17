@@ -25,7 +25,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
             final char rangeStart = (char) (startChar + i * rangePerThread);
             final char rangeEnd = (char) (i == threadCount - 1 ? endChar : rangeStart + rangePerThread - 1);
 
-            threads[i] = new Thread(() -> bruteForceSearch(targetHash, passwordLength, rangeStart, rangeEnd));
+            threads[i] = new Thread(() -> bruteForceSearch(targetHash, passwordLength, rangeStart, rangeEnd, ""));
             threads[i].start();
         }
 
@@ -40,15 +40,21 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         searchTime = System.currentTimeMillis() - startTime;
     }
 
-    private void bruteForceSearch(String targetHash, int length, char start, char end) {
-        for (char c = start; c <= end && !found; c++) {
-            String candidate = String.valueOf(c);
-            String hashed = md5(candidate);
-            if (hashed.equals(targetHash)) {
+    private void bruteForceSearch(String targetHash, int length, char start, char end, String prefix) {
+        if (found) return;
+
+        if (prefix.length() == length) {
+            String hashed = md5(prefix);
+            if (hashed != null && hashed.equals(targetHash)) {
                 found = true;
-                foundPassword = candidate;
-                System.out.println("Password found: " + candidate);
+                foundPassword = prefix;
+                System.out.println("Password found: " + prefix);
             }
+            return;
+        }
+
+        for (char c = start; c <= end && !found; c++) {
+            bruteForceSearch(targetHash, length, start, end, prefix + c);
         }
     }
 
@@ -62,7 +68,8 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            return null;
+            System.err.println("MD5 algorithm not found: " + e.getMessage());
+            return "";
         }
     }
 
