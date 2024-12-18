@@ -3,6 +3,8 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 public class CrackingServer extends UnicastRemoteObject implements CrackingServerInterface {
     private volatile boolean found = false; // Flag to stop threads
