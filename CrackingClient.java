@@ -30,7 +30,7 @@ public class CrackingClient {
             servers[0] = (CrackingServerInterface) registry1.lookup("CrackingServer");
 
             if (serverCount == 2) {
-                Registry registry2 = LocateRegistry.getRegistry("192.168.122.102", 1100);
+                Registry registry2 = LocateRegistry.getRegistry("192.168.122.102", 1099);
                 servers[1] = (CrackingServerInterface) registry2.lookup("CrackingServer");
             }
 
