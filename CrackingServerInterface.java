@@ -6,4 +6,5 @@ public interface CrackingServerInterface extends Remote {
     boolean isPasswordFound() throws RemoteException;
     String getFoundPassword() throws RemoteException;
     long getSearchTime() throws RemoteException;
+    double getProgress() throws RemoteException;
 }
