@@ -1,5 +1,7 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Scanner;
 
 public class CrackingClient {
@@ -7,6 +9,7 @@ public class CrackingClient {
         try {
             Scanner scanner = new Scanner(System.in);
 
+            // User input
             System.out.print("Enter MD5 hash value: ");
             String targetHash = scanner.nextLine();
 
@@ -25,6 +28,7 @@ public class CrackingClient {
                 throw new IllegalArgumentException("Invalid number of threads (1-10 allowed).");
             }
 
+            // RMI lookup for servers
             CrackingServerInterface[] servers = new CrackingServerInterface[2];
             Registry registry1 = LocateRegistry.getRegistry("192.168.122.101", 1099);
             servers[0] = (CrackingServerInterface) registry1.lookup("CrackingServer");
@@ -35,6 +39,9 @@ public class CrackingClient {
             }
 
             System.out.println("Starting distributed password search...");
+
+            String timeStart = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
+            System.out.println("Time start timestamp: " + timeStart);
 
             Thread[] tasks = new Thread[serverCount];
             char midChar = 'M';
@@ -65,11 +72,17 @@ public class CrackingClient {
                 if (task != null) task.join();
             }
 
+            // Display results
             for (int i = 0; i < serverCount; i++) {
                 if (servers[i].isPasswordFound()) {
-                    System.out.println("Password found by Server " + (i + 1) + ": " + servers[i].getFoundPassword());
+                    String foundPassword = servers[i].getFoundPassword();
+                    System.out.println("Password is: " + foundPassword);
+                    System.out.println("Password found by Server " + (i + 1) + ": " + foundPassword);
                 }
             }
+
+            String timeEnd = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
+            System.out.println("Time end timestamp: " + timeEnd);
 
         } catch (Exception e) {
             System.err.println("Client error: " + e.getMessage());
