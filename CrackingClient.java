@@ -51,7 +51,7 @@ public class CrackingClient {
                 // Multithreading: Create threads for each server to perform the search
                 tasks[0] = new Thread(() -> {
                     try {
-                        servers[0].startSearch(targetHash, passwordLength, '!', midChar, threadCount);
+                        servers[0].startSearch(targetHash, passwordLength, '!', midChar, threadCount, 1);
                     } catch (Exception e) {
                         System.err.println("Server 1 error: " + e.getMessage());
                     }
@@ -60,7 +60,7 @@ public class CrackingClient {
                 if (serverCount == 2) {
                     tasks[1] = new Thread(() -> {
                         try {
-                            servers[1].startSearch(targetHash, passwordLength, (char) (midChar + 1), 'z', threadCount);
+                            servers[1].startSearch(targetHash, passwordLength, (char) (midChar + 1), 'z', threadCount, 2);
                         } catch (Exception e) {
                             System.err.println("Server 2 error: " + e.getMessage());
                         }
