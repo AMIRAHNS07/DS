@@ -21,14 +21,8 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
     @Override
     public void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount, int serverID) throws RemoteException {
-        System.out.println("===============================================");
-        System.out.println("Server " + serverID + " Starting Search...");
-        System.out.println("MD5 Hash Value: " + targetHash);
-        System.out.println("Password Length: " + passwordLength);
-        System.out.println("Number of Threads: " + threadCount);
-        System.out.println("Character Range: [" + startChar + "-" + endChar + "]");
-        System.out.println("Start Time: " + getCurrentTimestamp());
-        System.out.println("===============================================");
+        System.out.println("Start searching....");
+        System.out.println("Start searching at: " + getCurrentTimestamp()); 
 
         long startTime = System.currentTimeMillis();
 
@@ -52,17 +46,12 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         }
 
         searchTime = System.currentTimeMillis() - startTime;
+        System.out.println("- End searching at: " + getCurrentTimestamp()); 
+        System.out.println("Stop searching...");
 
-        System.out.println("===============================================");
         if (found) {
-            System.out.println("Server " + serverID + " has found the password.");
-            System.out.println("Password: " + foundPassword);
-            System.out.println("Thread ID: " + foundThreadID);
-        } else {
-            System.out.println("Server " + serverID + " could not find the password.");
+            System.out.println("- Password found by Server " + serverID + ": " + foundPassword);
         }
-        System.out.println("End Time: " + getCurrentTimestamp());
-        System.out.println("===============================================");
     }
 
     private void bruteForceSearch(String targetHash, int length, char start, char end, String prefix) {
@@ -74,12 +63,21 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
                 found = true;
                 foundPassword = prefix;
                 foundThreadID = Thread.currentThread().getId();
+                System.out.println("Password found: " + prefix);
             }
             return;
         }
 
+        int progressInterval = 1000;  // Report progress every 1000 combinations
+        int counter = 0;
+
         for (char c = start; c <= end && !found; c++) {
             bruteForceSearch(targetHash, length, start, end, prefix + c);
+            counter++;
+
+            if (counter % progressInterval == 0) {
+                System.out.println("Server " + serverID + " - Thread Progress: " + counter + " combinations processed in range [" + start + "-" + end + "]");
+            }
         }
     }
 
