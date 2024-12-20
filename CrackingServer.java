@@ -22,9 +22,9 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
     @Override
     public void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount) throws RemoteException {
-        System.out.println("Starting search on server...");
-        String startTime = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
-        System.out.println("Start time: " + startTime);
+        System.out.println("Server: Starting password search...");
+        String startTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+        System.out.println("Start Time: " + startTime);
 
         long startMillis = System.currentTimeMillis();
         Thread[] threads = new Thread[threadCount];
@@ -51,8 +51,8 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
         searchTime = System.currentTimeMillis() - startMillis;
 
-        String endTime = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
-        System.out.println("End time: " + endTime);
+        String endTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+        System.out.println("End Time: " + endTime);
     }
 
     private void bruteForceSearch(String targetHash, int length, char start, char end, String prefix, AtomicBoolean stopFlag) {
@@ -61,14 +61,14 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         if (prefix.length() == length) {
             checkedCombinations++;
             double progress = (double) checkedCombinations / totalCombinations * 100;
-            System.out.printf("Progress: %.2f%%\n", progress);
+            System.out.printf("Server Progress: %.2f%%\n", progress);
 
             String hashed = md5(prefix);
             if (hashed != null && hashed.equals(targetHash)) {
                 found = true;
                 stopFlag.set(true);
                 foundPassword = prefix;
-                System.out.println("Password found by thread " + Thread.currentThread().getId() + ": " + prefix);
+                System.out.println("Password found: " + prefix + " by Thread " + Thread.currentThread().getId());
             }
             return;
         }
