@@ -12,13 +12,15 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
     private String foundPassword = null;    // Holds the found password
     private long searchTime = 0;
     private long foundThreadID = -1;        // Thread ID that finds the password
+    private int serverID;                   // Server ID
 
-    protected CrackingServer() throws RemoteException {
+    protected CrackingServer(int serverID) throws RemoteException {
         super();
+        this.serverID = serverID;
     }
 
     @Override
-    public void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount) throws RemoteException {
+    public void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount, int serverID) throws RemoteException {
         System.out.println("Start searching....");
         System.out.println("- Timestamp of start searching: " + getCurrentTimestamp());
 
@@ -48,7 +50,7 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
         System.out.println("Stop searching...");
 
         if (found) {
-            System.out.println("- Password found by Server.");
+            System.out.println("- Password found by Server " + serverID + ".");
         }
     }
 
@@ -121,10 +123,11 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
     public static void main(String[] args) {
         try {
             int port = args.length > 0 ? Integer.parseInt(args[0]) : 1099;
+            int serverID = args.length > 1 ? Integer.parseInt(args[1]) : 1;
             Registry registry = LocateRegistry.createRegistry(port);
-            CrackingServer server = new CrackingServer();
+            CrackingServer server = new CrackingServer(serverID);
             registry.rebind("CrackingServer", server);
-            System.out.println("Server started on port " + port);
+            System.out.println("Server " + serverID + " started on port " + port);
         } catch (Exception e) {
             System.err.println("Server error: " + e.getMessage());
             e.printStackTrace();
