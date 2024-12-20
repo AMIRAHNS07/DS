@@ -4,6 +4,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.rmi.RemoteException;
+import java.rmi.Remote
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CrackingServer extends UnicastRemoteObject implements CrackingServerInterface {
