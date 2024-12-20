@@ -7,41 +7,34 @@ import java.util.Scanner;
 public class CrackingClient {
     public static void main(String[] args) {
         try {
+            // Predefined server IP addresses
+            String[] serverIPs = {"192.168.122.101", "192.168.122.102"};
+            int serverCount = 1;  // Set the number of servers (1 or 2)
+            int threadCount = 5;  // Set the number of threads per server (1-10)
+
             Scanner scanner = new Scanner(System.in);
 
-            // User input
             System.out.print("Enter MD5 hash value: ");
             String targetHash = scanner.nextLine();
 
             System.out.print("Enter password length: ");
             int passwordLength = scanner.nextInt();
 
-            System.out.print("Enter number of servers (1-2): ");
-            int serverCount = scanner.nextInt();
-            if (serverCount < 1 || serverCount > 2) {
-                throw new IllegalArgumentException("Invalid number of servers (1-2 allowed).");
-            }
-
-            System.out.print("Enter number of threads per server (1-10): ");
-            int threadCount = scanner.nextInt();
-            if (threadCount < 1 || threadCount > 10) {
-                throw new IllegalArgumentException("Invalid number of threads (1-10 allowed).");
-            }
-
             // RMI lookup for servers
             CrackingServerInterface[] servers = new CrackingServerInterface[2];
-            Registry registry1 = LocateRegistry.getRegistry("192.168.122.101", 1099);
+
+            Registry registry1 = LocateRegistry.getRegistry(serverIPs[0], 1099);
             servers[0] = (CrackingServerInterface) registry1.lookup("CrackingServer");
 
             if (serverCount == 2) {
-                Registry registry2 = LocateRegistry.getRegistry("192.168.122.102", 1099);
+                Registry registry2 = LocateRegistry.getRegistry(serverIPs[1], 1099);
                 servers[1] = (CrackingServerInterface) registry2.lookup("CrackingServer");
             }
 
             System.out.println("Starting distributed password search...");
 
-            String timeStart = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
-            System.out.println("Time start timestamp: " + timeStart);
+            String timeStart = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+            System.out.println("Start Time: " + timeStart);
 
             Thread[] tasks = new Thread[serverCount];
             char midChar = 'M';
@@ -76,13 +69,16 @@ public class CrackingClient {
             for (int i = 0; i < serverCount; i++) {
                 if (servers[i].isPasswordFound()) {
                     String foundPassword = servers[i].getFoundPassword();
-                    System.out.println("Password is: " + foundPassword);
-                    System.out.println("Password found by Server " + (i + 1) + ": " + foundPassword);
+                    System.out.println("Password Found: " + foundPassword);
+                    System.out.println("Thread ID: " + servers[i].getThreadID());
+                    System.out.println("Server: Server " + (i + 1));
+                    long totalTime = servers[i].getSearchTime();
+                    System.out.println("Total Time: " + totalTime / 1000.0 + " seconds");
+                    System.out.println("Start Time: " + timeStart);
+                    String timeEnd = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+                    System.out.println("End Time: " + timeEnd);
                 }
             }
-
-            String timeEnd = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
-            System.out.println("Time end timestamp: " + timeEnd);
 
         } catch (Exception e) {
             System.err.println("Client error: " + e.getMessage());
