@@ -5,24 +5,28 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.rmi.RemoteException;
 import java.rmi.Remote;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CrackingServer extends UnicastRemoteObject implements CrackingServerInterface {
-    private volatile boolean found = false; // Flag to stop threads
-    private String foundPassword = null;    // Holds the found password
-    private long searchTime = 0;            // Total search time
-    private long totalCombinations = 0;    // Total combinations to try
-    private long checkedCombinations = 0;  // Combinations checked so far
+    private volatile boolean found = false;
+    private String foundPassword = null;
+    private long searchTime = 0;
+    private long totalCombinations = 0;
+    private long checkedCombinations = 0;
 
-    protected CrackingServer() throws Exception {
+    protected CrackingServer() throws RemoteException {
         super();
     }
 
     @Override
     public void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount) throws RemoteException {
         System.out.println("Starting search on server...");
-        long startTime = System.currentTimeMillis();
+        String startTime = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
+        System.out.println("Start time: " + startTime);
 
+        long startMillis = System.currentTimeMillis();
         Thread[] threads = new Thread[threadCount];
         int rangePerThread = (endChar - startChar + 1) / threadCount;
 
@@ -45,7 +49,10 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
             }
         }
 
-        searchTime = System.currentTimeMillis() - startTime;
+        searchTime = System.currentTimeMillis() - startMillis;
+
+        String endTime = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy").format(new Date());
+        System.out.println("End time: " + endTime);
     }
 
     private void bruteForceSearch(String targetHash, int length, char start, char end, String prefix, AtomicBoolean stopFlag) {
@@ -53,12 +60,15 @@ public class CrackingServer extends UnicastRemoteObject implements CrackingServe
 
         if (prefix.length() == length) {
             checkedCombinations++;
+            double progress = (double) checkedCombinations / totalCombinations * 100;
+            System.out.printf("Progress: %.2f%%\n", progress);
+
             String hashed = md5(prefix);
             if (hashed != null && hashed.equals(targetHash)) {
                 found = true;
                 stopFlag.set(true);
                 foundPassword = prefix;
-                System.out.println("Password found: " + prefix);
+                System.out.println("Password found by thread " + Thread.currentThread().getId() + ": " + prefix);
             }
             return;
         }
