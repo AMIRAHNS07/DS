@@ -19,15 +19,9 @@ public class CrackingClient {
 
                 System.out.print("Enter number of servers (1-2): ");
                 int serverCount = scanner.nextInt();
-                if (serverCount < 1 || serverCount > 2) {
-                    throw new IllegalArgumentException("Invalid number of servers (1-2 allowed).");
-                }
 
                 System.out.print("Enter number of threads per server (1-10): ");
                 int threadCount = scanner.nextInt();
-                if (threadCount < 1 || threadCount > 10) {
-                    throw new IllegalArgumentException("Invalid number of threads (1-10 allowed).");
-                }
 
                 scanner.nextLine(); // Consume newline
 
@@ -40,15 +34,11 @@ public class CrackingClient {
                     servers[1] = (CrackingServerInterface) registry2.lookup("CrackingServer");
                 }
 
-                System.out.println("Starting distributed password search...");
-
-                // Capture start time for time tracking
                 long startTime = System.currentTimeMillis();
 
                 Thread[] tasks = new Thread[serverCount];
                 char midChar = 'M';
 
-                // Multithreading: Create threads for each server to perform the search
                 tasks[0] = new Thread(() -> {
                     try {
                         servers[0].startSearch(targetHash, passwordLength, '!', midChar, threadCount, 1);
@@ -67,45 +57,31 @@ public class CrackingClient {
                     });
                 }
 
-                // Start all threads
                 for (Thread task : tasks) {
                     if (task != null) task.start();
                 }
 
-                // Wait for all threads to complete
                 for (Thread task : tasks) {
                     if (task != null) task.join();
                 }
 
-                // Capture the end time and calculate elapsed time
-                long endTime = System.currentTimeMillis();
-                long elapsedTime = endTime - startTime;
+                long elapsedTime = System.currentTimeMillis() - startTime;
+                System.out.println("Time spent: " + elapsedTime + "ms");
 
-                // Format time spent
-                long hours = (elapsedTime / (1000 * 60 * 60)) % 24;
-                long minutes = (elapsedTime / (1000 * 60)) % 60;
-                long seconds = (elapsedTime / 1000) % 60;
-                long milliseconds = elapsedTime % 1000;
-                String formattedTime = String.format("%02d:%02d:%02d:%03d", hours, minutes, seconds, milliseconds);
-
-                // Check if any server found the password
-                boolean passwordFound = false;
+                boolean found = false;
                 for (int i = 0; i < serverCount; i++) {
                     if (servers[i].isPasswordFound()) {
-                        System.out.println("Password found by Server " + (i + 1) + ": " + servers[i].getFoundPassword());
-                        System.out.println("Password found by Thread ID: " + servers[i].getThreadID());
-                        passwordFound = true;
+                        System.out.println("Password found: " + servers[i].getFoundPassword());
+                        System.out.println("Found by Thread ID: " + servers[i].getThreadID());
+                        found = true;
                     }
                 }
 
-                if (!passwordFound) {
+                if (!found) {
                     System.out.println("Password not found.");
                 }
-
-                System.out.println("Time spent: " + formattedTime);
-
             } catch (Exception e) {
-                System.err.println("Client error: " + e.getMessage());
+                System.err.println("Error: " + e.getMessage());
                 e.printStackTrace();
             }
         }
