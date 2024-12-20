@@ -1,75 +1,45 @@
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.Scanner;
 
 public class CrackingClient {
     public static void main(String[] args) {
+        if (args.length < 5) {
+            System.out.println("Usage: java CrackingClient <server1_ip> <server2_ip> <hash> <password_length> <threads_per_server>");
+            return;
+        }
+
+        String server1Ip = args[0];
+        String server2Ip = args[1];
+        String targetHash = args[2];
+        int passwordLength = Integer.parseInt(args[3]);
+        int threadsPerServer = Integer.parseInt(args[4]);
+
         try {
-            Scanner scanner = new Scanner(System.in);
+            Registry registry1 = LocateRegistry.getRegistry(server1Ip);
+            Registry registry2 = LocateRegistry.getRegistry(server2Ip);
 
-            System.out.print("Enter MD5 hash value: ");
-            String targetHash = scanner.nextLine();
+            CrackingServerInterface server1 = (CrackingServerInterface) registry1.lookup("CrackingServer");
+            CrackingServerInterface server2 = (CrackingServerInterface) registry2.lookup("CrackingServer");
 
-            System.out.print("Enter password length: ");
-            int passwordLength = scanner.nextInt();
+            char startChar = '!';
+            char midChar = (char) (startChar + (94 / 2));
+            char endChar = '~';
 
-            System.out.print("Enter number of servers (1-2): ");
-            int serverCount = scanner.nextInt();
-            if (serverCount < 1 || serverCount > 2) {
-                throw new IllegalArgumentException("Invalid number of servers (1-2 allowed).");
+            server1.startSearch(targetHash, passwordLength, startChar, midChar, threadsPerServer);
+            server2.startSearch(targetHash, passwordLength, (char) (midChar + 1), endChar, threadsPerServer);
+
+            while (!server1.isPasswordFound() && !server2.isPasswordFound()) {
+                System.out.printf("Progress - Server 1: %.2f%%, Server 2: %.2f%%\n", server1.getProgress(), server2.getProgress());
+                Thread.sleep(1000); // Update progress every second
             }
 
-            System.out.print("Enter number of threads per server (1-10): ");
-            int threadCount = scanner.nextInt();
-            if (threadCount < 1 || threadCount > 10) {
-                throw new IllegalArgumentException("Invalid number of threads (1-10 allowed).");
-            }
+            CrackingServerInterface winnerServer = server1.isPasswordFound() ? server1 : server2;
+            String foundPassword = winnerServer.getFoundPassword();
+            long searchTime = winnerServer.getSearchTime();
 
-            CrackingServerInterface[] servers = new CrackingServerInterface[2];
-            Registry registry1 = LocateRegistry.getRegistry("192.168.122.101", 1099);
-            servers[0] = (CrackingServerInterface) registry1.lookup("CrackingServer");
-
-            if (serverCount == 2) {
-                Registry registry2 = LocateRegistry.getRegistry("192.168.122.102", 1099);
-                servers[1] = (CrackingServerInterface) registry2.lookup("CrackingServer");
-            }
-
-            System.out.println("Starting distributed password search...");
-
-            Thread[] tasks = new Thread[serverCount];
-            char midChar = 'M';
-
-            tasks[0] = new Thread(() -> {
-                try {
-                    servers[0].startSearch(targetHash, passwordLength, '!', midChar, threadCount);
-                } catch (Exception e) {
-                    System.err.println("Server 1 error: " + e.getMessage());
-                }
-            });
-
-            if (serverCount == 2) {
-                tasks[1] = new Thread(() -> {
-                    try {
-                        servers[1].startSearch(targetHash, passwordLength, (char) (midChar + 1), 'z', threadCount);
-                    } catch (Exception e) {
-                        System.err.println("Server 2 error: " + e.getMessage());
-                    }
-                });
-            }
-
-            for (Thread task : tasks) {
-                if (task != null) task.start();
-            }
-
-            for (Thread task : tasks) {
-                if (task != null) task.join();
-            }
-
-            for (int i = 0; i < serverCount; i++) {
-                if (servers[i].isPasswordFound()) {
-                    System.out.println("Password found by Server " + (i + 1) + ": " + servers[i].getFoundPassword());
-                }
-            }
+            System.out.printf("Password Found: %s\nThread ID: %s\nServer: %s\nTime: %02d:%02d:%02d:%03d\n",
+                    foundPassword, Thread.currentThread().getId(), (winnerServer == server1 ? "Server 1" : "Server 2"),
+                    searchTime / 3600000, (searchTime / 60000) % 60, (searchTime / 1000) % 60, searchTime % 1000);
 
         } catch (Exception e) {
             System.err.println("Client error: " + e.getMessage());
