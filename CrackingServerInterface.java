@@ -2,9 +2,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface CrackingServerInterface extends Remote {
-    void startSearch(String targetHash, int passwordLength, char startChar, char endChar, int threadCount, int serverID) throws RemoteException;
+    boolean startSearch(String hash, int passwordLength, int serverId, int totalServers, int threadsPerServer) throws RemoteException;
     boolean isPasswordFound() throws RemoteException;
-    String getFoundPassword() throws RemoteException;
-    long getSearchTime() throws RemoteException;
-    long getThreadID() throws RemoteException;
+    String getPassword() throws RemoteException;
+    String getFoundByThread() throws RemoteException;
+    long getTimeSpent() throws RemoteException;
 }
